@@ -98,7 +98,8 @@ class VibeVoiceProcessor:
         logger.info(f"Loading tokenizer from {language_model_pretrained_name}")
         if 'qwen' in language_model_pretrained_name.lower():
             tokenizer = VibeVoiceTextTokenizerFast.from_pretrained(
-                language_model_pretrained_name,
+                # language_model_pretrained_name,
+                "./models/Qwen/Qwen2___5-1___5B",    # 直接硬编码物理路径. 确保路径是您通过 pwd -P 命令获取到的真实物理路径，并且字符串两边有引号
                 **kwargs
             )
         else:
