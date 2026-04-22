@@ -193,7 +193,13 @@ def parse_args():
     type=int,
     default=None,
     help="Random seed for reproducibility (optional)",
-)
+    )
+    parser.add_argument(
+        "--num_steps",
+        type=int,
+        default=10,
+        help="DDPM diffusion steps (default: 10, 6 约快一倍)",
+    )
     return parser.parse_args()
 
 def main():
@@ -277,12 +283,16 @@ def main():
     full_script = full_script.replace("’", "'")        
     
     print(f"Loading processor & model from {args.model_path}")
-    processor = VibeVoiceProcessor.from_pretrained(args.model_path)
+    # processor = VibeVoiceProcessor.from_pretrained(args.model_path)
+    processor = VibeVoiceProcessor.from_pretrained(
+        args.model_path,
+        language_model_pretrained_name="./models/Qwen/Qwen2___5-1___5B"     # 加这行   
+    )
 
 
     # Decide dtype & attention implementation
     if args.device == "mps":
-        load_dtype = torch.float32  # MPS requires float32
+        load_dtype = torch.float16  # MPS requires float32
         attn_impl_primary = "sdpa"  # flash_attention_2 not supported on MPS
     elif args.device == "cuda":
         load_dtype = torch.bfloat16
@@ -297,10 +307,12 @@ def main():
             model = VibeVoiceForConditionalGenerationInference.from_pretrained(
                 args.model_path,
                 torch_dtype=load_dtype,
-                attn_implementation=attn_impl_primary,
+                attn_implementation='sdpa',
                 device_map=None,  # load then move
             )
             model.to("mps")
+            torch.mps.synchronize()
+            print("✅ Model moved to MPS (float16)")
         elif args.device == "cuda":
             model = VibeVoiceForConditionalGenerationInference.from_pretrained(
                 args.model_path,
@@ -362,7 +374,9 @@ def main():
         print("Voice cloning enabled: running generation with is_prefill=True")
 
     model.eval()
-    model.set_ddpm_inference_steps(num_steps=10)
+    # model.set_ddpm_inference_steps(num_steps=10)
+    model.set_ddpm_inference_steps(num_steps=args.num_steps)
+    print(f"DDPM steps: {args.num_steps}")
 
     if hasattr(model.model, 'language_model'):
        print(f"Language model attention: {model.model.language_model.config._attn_implementation}")
